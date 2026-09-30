@@ -1,0 +1,7 @@
+<?php require 'includes/layout.php'; admin();
+if ($_POST) { $n = max(1, (int)$_POST['copies']); $pdo->prepare('INSERT INTO books(isbn,title,author,category,year,shelf,copies,available) VALUES(?,?,?,?,?,?,?,?)')->execute([$_POST['isbn'], $_POST['title'], $_POST['author'], $_POST['category'], (int)$_POST['year'], $_POST['shelf'], $n, $n]); header('Location: books.php'); exit; }
+$rows = $pdo->query('SELECT * FROM books ORDER BY id DESC LIMIT 12')->fetchAll(); top('Books', true); ?>
+<main class="wrap"><h1>Add a book</h1><form method="post" class="card add"><input name="title" placeholder="Title" required><input name="author" placeholder="Author" required><input name="isbn" placeholder="ISBN" required>
+<select name="category"><?php foreach (CATS as $k => $v) echo '<option>'.e($k).'</option>'; ?></select><input name="year" type="number" placeholder="Year" required><input name="shelf" placeholder="Shelf, e.g. CL-15" required><input name="copies" type="number" min="1" value="3"><button class="btn">Add book</button></form>
+<div class="card scroll"><h3>Latest additions</h3><table><tr><th>Title</th><th>Author</th><th>Category</th><th>Shelf</th><th>Copies</th></tr><?php foreach ($rows as $r) echo '<tr><td>'.e($r['title']).'</td><td>'.e($r['author']).'</td><td>'.e($r['category']).'</td><td>'.e($r['shelf']).'</td><td>'.$r['available'].'/'.$r['copies'].'</td></tr>'; ?></table></div></main>
+<?php bottom();

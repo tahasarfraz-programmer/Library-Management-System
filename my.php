@@ -1,0 +1,15 @@
+<?php require 'includes/layout.php'; auth(); if ($_SESSION['u']['role'] == 'admin') { header('Location: dashboard.php'); exit; }
+$id = $_SESSION['u']['id'];
+if (isset($_POST['cancel'])) { $pdo->prepare("UPDATE reservations SET status='cancelled', decided=NOW() WHERE id=? AND user_id=? AND status='pending'")->execute([$_POST['cancel'], $id]); flash('Reservation cancelled.'); header('Location: my.php'); exit; }
+$u = $pdo->prepare('SELECT * FROM users WHERE id=?'); $u->execute([$id]); $u = $u->fetch();
+$q = function ($sql) use ($pdo, $id) { $s = $pdo->prepare($sql); $s->execute([$id]); return $s->fetchAll(); };
+$res = $q("SELECT r.id,r.requested,b.title,b.author,b.category FROM reservations r JOIN books b ON b.id=r.book_id WHERE r.user_id=? AND r.status='pending' ORDER BY r.id DESC");
+$out = $q("SELECT b.title,b.author,b.category,l.issued,l.due,DATEDIFF(CURDATE(),l.due) late FROM loans l JOIN books b ON b.id=l.book_id WHERE l.user_id=? AND l.returned IS NULL ORDER BY l.due");
+$his = $q("SELECT b.title,l.issued,l.returned,l.fine FROM loans l JOIN books b ON b.id=l.book_id WHERE l.user_id=? AND l.returned IS NOT NULL ORDER BY l.id DESC LIMIT 8");
+top('My books', 'user'); ?>
+<main class="wrap"><h1>My books</h1><div class="two"><div class="card profile"><span class="av"><?= e($u['name'][0]) ?></span><h3><?= e($u['name']) ?> <b class="tag"><?= e($u['role']) ?></b></h3>
+<dl><dt><?= $u['role'] == 'teacher' ? 'Employee ID' : 'Student ID' ?></dt><dd><?= e($u['id_no']) ?></dd><dt>Department</dt><dd><?= e($u['department']) ?></dd><dt><?= $u['role'] == 'teacher' ? 'Designation' : 'Class or year' ?></dt><dd><?= e($u['level']) ?></dd><dt>Email</dt><dd><?= e($u['email']) ?></dd><dt>Phone</dt><dd><?= e($u['phone']) ?></dd><dt>Address</dt><dd><?= e($u['address']) ?></dd><dt>Loan period</dt><dd><?= days($u['role']) ?> days, up to <?= MAX_ACTIVE[$u['role']] ?> books</dd></dl></div>
+<div><div class="card"><h3>Waiting for the librarian</h3><?php foreach ($res as $r) echo '<form method="post" class="row"><span>'.e($r['title']).'<small>'.e($r['author']).'</small></span><button class="btn sm ghost" name="cancel" value="'.$r['id'].'">Cancel</button></form>'; if (!$res) echo '<p class="empty">No pending reservations. <a href="index.php">Browse the catalogue</a>.</p>'; ?></div>
+<div class="card"><h3>Borrowed now</h3><?php foreach ($out as $r) echo '<p class="row"><span>'.e($r['title']).'<small>Due '.$r['due'].'</small></span><b class="tag '.($r['late'] > 0 ? 'bad' : '').'">'.($r['late'] > 0 ? $r['late'].' days late · fine '.number_format($r['late'] * FINE_PER_DAY, 2) : 'On time').'</b></p>'; if (!$out) echo '<p class="empty">Nothing borrowed at the moment.</p>'; ?></div></div></div>
+<div class="card"><h3>History</h3><?php foreach ($his as $r) echo '<p class="row">'.e($r['title']).'<small>'.$r['issued'].' to '.$r['returned'].($r['fine'] > 0 ? ' · fine '.number_format($r['fine'], 2) : '').'</small></p>'; if (!$his) echo '<p class="empty">Returned books will appear here.</p>'; ?></div></main>
+<?php bottom();
